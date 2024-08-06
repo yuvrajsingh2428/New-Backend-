@@ -1,0 +1,1 @@
+export const DB_NAME = "videotube"    // Name of database of application thats why kept in constant.js
