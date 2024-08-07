@@ -1,6 +1,7 @@
  // require('dotenv').config({path:'./env'}) or
  import dotenv from "dotenv"
  import connectDB from "./db/index.js";
+ import { app } from "./app.js";      // not written this line error was app is not defined
 
  dotenv.config({
     path: './env'
