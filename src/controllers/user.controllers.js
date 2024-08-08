@@ -21,25 +21,32 @@ const registerUser = asyncHandler( async (req, res) => {
     // 8.check for user creation
     // 9.return res
 
-    const {fullName, email, username, password} = req.body  //1     //all the data come in req.body
-    console.log("email:", email);
+    const {fullName, email, username, password} = req.body;  //1     //all the data come in req.body
+   // console.log("email:", email);
 
     if (                                                      //2
         [fullName, email, username, password].some((field) => field?.trim() === "") 
     ) {
         throw new ApiError(400, "All fields are required")
     }
-    const existedUser = User.findOne({                       //3
+    const existedUser = await User.findOne({        //3  // not used await so error showing 409 conflict in postman
         $or: [{ username }, { email }]            // by using $or we can check that user exist or not with same email and username
     })
 
     if (existedUser){
-        throw new ApiError(409, "User with email or username exist")
+        throw new ApiError(409, "User with email or username already exists")
     }
+
+    //console.log(req.files);
 
     //4  //req.body is given by express and req.files is given by multer
     const avatarLocalPath = req.files?.avatar[0]?.path;
-    const coverImageLocalPath = req.files?.coverImage[0]?.path;
+    //const coverImageLocalPath = req.files?.coverImage[0]?.path;
+
+    let coverImageLocalPath;
+    if (req.files && Array.isArray(req.files.coverImage) && req.files.coverImage.length > 0){
+        coverImageLocalPath = req.files.coverImage[0].path
+    }
 
     if(!avatarLocalPath) {
         throw new ApiError(400, "Avatar file is required")
@@ -50,16 +57,19 @@ const registerUser = asyncHandler( async (req, res) => {
     const avatar = await uploadOnCloudinary(avatarLocalPath)
     const coverImage = await uploadOnCloudinary(coverImageLocalPath)
 
+    console.log("Avatar upload response:", avatar);
+    console.log("Cover image upload response:", coverImage);
+
     //checking if avatar is uploaded or not bc it is important field 
     if(!avatar){
-        throw new ApiError(400, "Avatar file is required")
+        throw new ApiError(400, "Avatar file is not uploaded, its is necessary")
     }
 
     //6 entry in database
     const user = await User.create({
         fullName,
         avatar: avatar.url,
-        coverImage: coverImage?.url || "",        // we have not checked above that coverimage is uploaded or not so checking here if not uploaded return empty
+        coverImage: coverImage?.url || "",   // we have not checked above that coverimage is uploaded or not so checking here if not uploaded return empty
         email,
         password,
         username: username.toLowerCase()
@@ -83,5 +93,5 @@ const registerUser = asyncHandler( async (req, res) => {
 })
 
 export {
-    registerUser,
+    registerUser
 }

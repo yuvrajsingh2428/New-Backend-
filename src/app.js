@@ -9,8 +9,8 @@ app.use(cors({
     credentials: true
 }))
 
-app.use(express.json({limit: "16kb "}))  // limiting the data while filling form
-app.use(express.urlencoded({extended: true, limit: "16kb"}))  // data coming from url
+app.use(express.json({limit: "10mb"}))  // limiting the data while filling form
+app.use(express.urlencoded({extended: true, limit: "10mb"}))  // data coming from url
 app.use(express.static("public"))        // storing assets like photos pdfs etc in the our public folder
 app.use(cookieParser())
 

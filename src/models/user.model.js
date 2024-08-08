@@ -1,6 +1,6 @@
 import mongoose, {Schema} from "mongoose";
 import jwt from "jsonwebtoken";
-import bcrypt from "bcrypt"
+import bcrypt from "bcrypt";
 
 const userScehma = new Schema(
     {
@@ -51,10 +51,10 @@ const userScehma = new Schema(
     }
 )
 
-userScehma.pre("save", async function (next) {
+userScehma.pre("save", async function (next) {       // pre hook is on save 
     if(!this.isModified("password")) return next();
 
-    this.password = await bcrypt.hash(this.password, 10)   // encrypting the password while saving 
+    this.password = bcrypt.hash(this.password, 10)   // encrypting the password while saving 
     next()    
 })
 
@@ -63,29 +63,28 @@ userScehma.methods.isPasswordCorrect = async function(password){
 }
 
 userScehma.methods.generateAccessToken = function(){
-    jwt.sign({
+    return jwt.sign({
         _id: this._id,
         email: this.email,
         username: this.username,
-        fullName: this.fullName,
+        fullName: this.fullName
     },
     process.env.ACCESS_TOKEN_SECRET,
     {
-        expiresIn: ptocess.env.ACCESS_TOKEN_EXPIRY
+        expiresIn: process.env.ACCESS_TOKEN_EXPIRY
     }
 )
 }
-userScehma.methods.generateRefreshToken =function(){}
-jwt.sign({
-    _id: this._id,
-    email: this.email,
-    username: this.username,
-    fullName: this.fullName,
-},
-process.env.ACCESS_TOKEN_SECRET,
-{
-    expiresIn: process.env.ACCESS_TOKEN_EXPIRY
+userScehma.methods.generateRefreshToken =function(){
+    return jwt.sign(    // not written return here showing this TypeError: Cannot read properties of undefined (reading '_id')
+        {   
+        _id: this._id,
+    
+        },
+        process.env.REFRESH_TOKEN_SECRET,
+        {
+        expiresIn: process.env.REFRESH_TOKEN_EXPIRY
+        }
+    )
 }
-)
-
 export const User = mongoose.model("User", userScehma)
