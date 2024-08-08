@@ -54,8 +54,8 @@ const userScehma = new Schema(
 userScehma.pre("save", async function (next) {       // pre hook is on save 
     if(!this.isModified("password")) return next();
 
-    this.password = bcrypt.hash(this.password, 10)   // encrypting the password while saving 
-    next()    
+    this.password = await bcrypt.hash(this.password, 10)   // encrypting the password while saving 
+    next()     // not used await in above line error was that in mongodb atlas database the password was not encrypted 
 })
 
 userScehma.methods.isPasswordCorrect = async function(password){

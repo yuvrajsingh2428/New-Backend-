@@ -4,6 +4,24 @@ import {User} from "../models/user.model.js"
 import {uploadOnCloudinary} from "../utils/cloudinary.js"
 import { ApiResponse } from "../utils/ApiResponse.js";
 
+//5a
+const generateAccessAndRefreshTokens = async(userId) => {
+    try {
+        const user = await User.findById(userId)
+        const accessToken = user.generateAccessToken()
+        const refreshToken = user.generateRefreshToken()
+
+        user.refreshToken = refreshToken
+        await user.save({validateBeforeSave: false}) // bc while saving mongdb will kickin password so using validateBeforeSave
+        
+        //returning the refreshtoken and access token after generating and saving it
+        return {accessToken, refreshToken}
+
+
+    } catch (error) {
+        throw new ApiError(500, "Something went wrong while generating refresh and access token")
+    }
+}
 
 const registerUser = asyncHandler( async (req, res) => {
 
@@ -92,6 +110,91 @@ const registerUser = asyncHandler( async (req, res) => {
 
 })
 
+const loginUser = asyncHandler(async (req, res) => {
+    //1. req body -> data
+    //2. username or email base access
+    //3. find the user 
+    //4. password check
+    //5a&b.access and refresh token (to send the user)
+    //6. send cookie
+
+//1
+    const {email, username, password } = req.body;  
+
+    if (!(username || email)){
+        throw new ApiError(400, "username or email is required")
+    }
+//2
+    const user = await User.findOne({  // if only finding through email User.findOne({email}) but we want to check on both so,
+        $or: [{username}, {email}]     // find user on basis of email or username
+    })
+//3  
+    if (!user){
+        throw new ApiError(404, "User does not exist")
+    }
+//4    
+    const isPasswordValid = await user.isPasswordCorrect(password)  // compaing the password
+
+    if(!isPasswordValid){
+        throw new ApiError(401, "Invalid user credentials")
+    }
+//5b
+    const {accessToken, refreshToken} = await generateAccessAndRefreshTokens(user._id) 
+
+    const loggedInUser = User.findById(user._id).select("-password -refreshToken")
+//6
+    const options = {
+        httpOnly: true,   // by default cookies can be modified by anyone in frontend but,
+        secure: true      // after using these two it(cookie) will be modifiable by server only
+    }
+
+    return res
+    .status(200)
+    .cookie("accessToken", accessToken, options)  // sending cookies like as many you want
+    .cookie("refreshToken", refreshToken, options)
+    .json(
+        new ApiResponse(
+            200,
+            {
+                user: loggedInUser, accessToken, refreshToken  //sending to user
+            },
+            "User logged in Successfully"
+        )
+    )
+
+
+})
+
+// user logout format
+
+const logoutUser = asyncHandler(async(req, res) => {
+    await User.findByIdAndUpdate(
+        req.user._id,{
+            $set:{
+                refreshToken: undefined
+            }
+        },
+        {
+            new: true
+        }
+    )
+//clearin cookies after recieving the tokens and clearing it
+    const options = {
+        httpOnly: true,   
+        secure: true
+    }
+
+    return res
+    .status(200)
+    .clearCookie("accessToken", options)
+    .clearCookie("refreshToken", options)
+    .json(new ApiResponse(200, {}, "User logged Out"))
+})
+
 export {
-    registerUser
+    registerUser,
+    loginUser,
+    logoutUser
 }
+
+// to logout a user we made a middleware named auth.middleware.js 
