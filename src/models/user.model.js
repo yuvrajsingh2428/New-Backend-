@@ -59,11 +59,12 @@ userScehma.pre("save", async function (next) {       // pre hook is on save
 })
 
 userScehma.methods.isPasswordCorrect = async function(password){
-    return await bcrypt.compare(password, this.password)
+    return await bcrypt.compare(password, this.password);
 }
 
 userScehma.methods.generateAccessToken = function(){
-    return jwt.sign({
+    return jwt.sign(
+        {
         _id: this._id,
         email: this.email,
         username: this.username,

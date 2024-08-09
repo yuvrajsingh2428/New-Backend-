@@ -3,6 +3,8 @@ import { ApiError } from "../utils/ApiError.js";
 import {User} from "../models/user.model.js"
 import {uploadOnCloudinary} from "../utils/cloudinary.js"
 import { ApiResponse } from "../utils/ApiResponse.js";
+import jwt from "jsonwebtoken"
+
 
 //5a
 const generateAccessAndRefreshTokens = async(userId) => {
@@ -119,9 +121,12 @@ const loginUser = asyncHandler(async (req, res) => {
     //6. send cookie
 
 //1
-    const {email, username, password } = req.body;  
+    const {email, username, password } = req.body
+    console.log(email);
+    
 
-    if (!(username || email)){
+    //if (!(username || email)){   //use this if you need one of them
+    if (!username && !email){
         throw new ApiError(400, "username or email is required")
     }
 //2
@@ -133,7 +138,7 @@ const loginUser = asyncHandler(async (req, res) => {
         throw new ApiError(404, "User does not exist")
     }
 //4    
-    const isPasswordValid = await user.isPasswordCorrect(password)  // compaing the password
+    const isPasswordValid = await user.isPasswordCorrect(password)  // comparing the password
 
     if(!isPasswordValid){
         throw new ApiError(401, "Invalid user credentials")
@@ -141,7 +146,7 @@ const loginUser = asyncHandler(async (req, res) => {
 //5b
     const {accessToken, refreshToken} = await generateAccessAndRefreshTokens(user._id) 
 
-    const loggedInUser = User.findById(user._id).select("-password -refreshToken")
+    const loggedInUser = await User.findById(user._id).select("-password -refreshToken")
 //6
     const options = {
         httpOnly: true,   // by default cookies can be modified by anyone in frontend but,
@@ -191,10 +196,63 @@ const logoutUser = asyncHandler(async(req, res) => {
     .json(new ApiResponse(200, {}, "User logged Out"))
 })
 
+// making end point of refresh token befor that we have to make controller
+
+const refreshAccessToken = asyncHandler(async (req, res) => 
+    {
+    const incomingRefreshToken = req.cookies.refreshToken || req.body.refreshToken    // req.body.refreshToken using bc when user is using from phone
+    
+    if(!incomingRefreshToken){
+        throw new ApiError(401, "unauthorized request(incomingRefreshToken)")
+    }
+
+    // verifying the incoming refresh token
+    try {
+        const decodedToken = jwt.verify(
+            incomingRefreshToken, process.env.REFRESH_TOKEN_SECRET
+        )
+    
+        const user = await User.findById(decodedToken?._id)
+    
+        if(!user){
+            throw new ApiError(401, "Invalid refresh token")
+        }
+    
+        // matching the incoming refresh token from user and the token we have
+        if (incomingRefreshToken !== user?.refreshToken){
+            throw new ApiError(401, "Refresh token is expired or used")
+    
+        }
+    
+        const options = {
+            httpOnly: true,
+            secure: true
+        }
+        // after comaring the access token and refresh token if find matched then generating new
+    
+        const {accessToken, newRefreshToken} = await generateAccessAndRefreshTokens(user._id)
+    
+        return res
+        .status(200)
+        .cookie("accessToken", accessToken, options)
+        .cookie("refreshToken", newRefreshToken, options)
+        .json(
+            new ApiResponse(
+                200, {accessToken, refreshToken: newRefreshToken}, "Access token refreshed"
+            )
+        )
+    } catch (error) {
+        throw new ApiError(401, error?.message || "Invalid refresh token")
+        
+    }
+})
+
 export {
     registerUser,
     loginUser,
-    logoutUser
+    logoutUser,
+    refreshAccessToken 
+
 }
 
 // to logout a user we made a middleware named auth.middleware.js 
