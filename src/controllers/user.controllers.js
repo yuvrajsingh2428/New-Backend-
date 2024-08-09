@@ -247,12 +247,137 @@ const refreshAccessToken = asyncHandler(async (req, res) =>
     }
 })
 
+
+// how to change the password when user is logged in
+const changeCurrentPassword = asyncHandler(async(req, res) => {
+    const {oldPassword, newPassword} = req.body
+
+    const user =  await User.findById(req.user?._id)
+    const isPasswordCorrect = await user.isPasswordCorrect(oldPassword)
+
+    if (!isPasswordCorrect){
+        throw new ApiError(400, "Invalid old password")
+    }
+
+    user.password = newPassword
+    await user.save({validateBeforeSave: false})
+
+    return res
+    .status(200)
+    .json(new ApiResponse(200, {}, "Password changed successfully"))
+
+})
+
+// to get the current user
+const getCurrentUser = asyncHandler(async(req, res) => {
+    return res
+    .status(200)
+    .json(200, req.user, "current user fetched successfully")
+})
+
+// If user want to update anything in form data
+
+const updateAccountDetails = asyncHandler(async(req, res) => {
+    const { fullName, email} = req.body
+
+    if (!fullName || !email){
+        throw new ApiError(400, "All fields are required")
+    }
+
+    // now we want to get the email and fullname to get it updated
+    const user = User.findByIdAndUpdate(
+        req.user?._id,
+        {
+            $set: {
+                fullName,     // can write in both the ways
+                email: email
+            }
+        },
+        {new: true} // returns the updated information
+    ).select("-password")   // by doing this we don't need password
+
+    return res
+    .status(200)
+    .json(new ApiResponse(200, user, "Accounts details updated successfully"))
+})
+
+// updating the avatar and to get the file we have to use the middleware which is multer
+
+const updateUserAvatar = asyncHandler(async(req, res) => {
+
+    const avatarLocalPath = req.file?.path  // not files bc only single image we are looking for and getting localpath
+
+    if (!avatarLocalPath){
+        throw new ApiError(400, "Avatar file is missing")
+    }
+    // uploading it to cloudinary
+    const avatar = await uploadOnCloudinary(avatarLocalPath)
+
+    if(!avatar.url){
+        throw new ApiError(400, "Error while uploading on avatar")
+    }
+
+    const user = await User.findByIdAndUpdate(           // getting the user by findbyid and update
+        req.user?._id,
+        { // telling here what to update
+            $set: {
+                avatar: avatar.url              
+            }
+        },
+        {new: true}    // again using new to get the information after updation of avatar
+    ).select("-password")
+
+    return res
+    .status(200)
+    .json(
+        new ApiResponse(200, user, "Avatar image updated successfully")
+    )
+
+}) 
+
+const updateUserCoverImage = asyncHandler(async(req, res) => {
+
+    const coverImageLocalPath = req.file?.path  // not files bc only single image we are looking for and getting localpath
+
+    if (!coverImageLocalPath){
+        throw new ApiError(400, "cover image file is missing")
+    }
+    // uploading it to cloudinary
+    const coverImage = await uploadOnCloudinary(coverImageLocalPath)
+
+    if(!coverImage.url){              //checking it by its url which we have in our local path as coverImageLocalPath
+        throw new ApiError(400, "Error while uploading on cover image")
+    }
+
+    const user = await User.findByIdAndUpdate(           // getting the user by findbyid and update
+        req.user?._id,
+        { // telling here what to update
+            $set: {
+                coverImage: coverImage.url              
+            }
+        },
+        {new: true}    // again using new to get the information after updation of cover image
+    ).select("-password")
+
+    return res
+    .status(200)
+    .json(
+        new ApiResponse(200, user, "Cover image updated successfully")
+    )
+
+}) 
+
+
 export {
     registerUser,
     loginUser,
     logoutUser,
-    refreshAccessToken 
-
+    refreshAccessToken,
+    changeCurrentPassword,
+    getCurrentUser,
+    updateAccountDetails,
+    updateUserAvatar,
+    updateUserCoverImage
 }
 
 // to logout a user we made a middleware named auth.middleware.js 
