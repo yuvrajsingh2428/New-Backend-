@@ -25,7 +25,7 @@ const generateAccessAndRefreshTokens = async(userId) => {
         throw new ApiError(500, "Something went wrong while generating refresh and access token")
     }
 }
-
+// register user
 const registerUser = asyncHandler( async (req, res) => {
 
     // res.status(200).json({    // (/register) is called then it will give response 200(last video-http server) and json "ok"
@@ -42,7 +42,7 @@ const registerUser = asyncHandler( async (req, res) => {
     // 8.check for user creation
     // 9.return res
 
-    const {fullName, email, username, password} = req.body;  //1     //all the data come in req.body
+const {fullName, email, username, password} = req.body;  //1     //all the data come in req.body
    // console.log("email:", email);
 
     if (                                                      //2
@@ -176,9 +176,9 @@ const loginUser = asyncHandler(async (req, res) => {
 const logoutUser = asyncHandler(async(req, res) => {
     await User.findByIdAndUpdate(
         req.user._id,{
-            $set:{
-                refreshToken: undefined
-            }
+            $unset:{                   // not using $set because $unset is much better approach 
+                refreshToken: 1  // this removes the field from the document
+            }    // before unset we have used $set with refreshToken: null or refreshToken: undefined 
         },
         {
             new: true
@@ -415,7 +415,7 @@ const getUserChannelProfile = asyncHandler(async(req, res) => {
                 },
                 isSubscribed: {
                     $cond: {
-                        if: {$sin:[req.user?._id, "subscriber"]},
+                        if: {$in:[req.user?._id, "subscriber"]},
                         then : true,
                         else: false
                         
@@ -464,7 +464,8 @@ const getWatchHistory = asyncHandler(async(req, res) => {
                 as: "watchHistory",
                 pipeline: [
                     {
-                        $lookup:"users",
+                        $lookup:{
+                        from: "users",
                         localField: "owner",
                         foreignField: "_id",
                         as:"owner",
@@ -479,7 +480,7 @@ const getWatchHistory = asyncHandler(async(req, res) => {
                         }]
 
                     }
-                ]
+            }]
             }
         },
         {
