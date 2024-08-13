@@ -384,14 +384,14 @@ const getUserChannelProfile = asyncHandler(async(req, res) => {
     }
 
     const channel = await User.aggregate([ //User.aggregate([{},{},{}])   in this way we can write pipe lines 
-        {
-            $match: {            // first pipe line
+        { // first pipe line
+            $match: {            // match is used like to get the value from particular field like username from user
                 username: username?.toLowerCase()
             }
         },
         {   //pipe line to find the number of subscribers
             $lookup: {
-                from: "subscription",
+                from: "subscriptions",
                 localField: "_id",
                 foreignField: "channel",
                 as: "subscribers"
@@ -399,7 +399,7 @@ const getUserChannelProfile = asyncHandler(async(req, res) => {
         },
         { // finding the number of channels subscribed by the user
             $lookup: {
-                from: "subscription",
+                from: "subscriptions",
                 localField: "_id",
                 foreignField: "subscriber",
                 as: "subscribedTo"  //showing as the number of channels subscribed by the user
@@ -411,11 +411,11 @@ const getUserChannelProfile = asyncHandler(async(req, res) => {
                     $size: "$subscribers"
                 },
                 channelSubscribedToCount: {
-                    $size: "subscribedTo"
+                    $size: "$subscribedTo"
                 },
                 isSubscribed: {
                     $cond: {
-                        if: {$in:[req.user?._id, "subscriber"]},
+                        if: {$in:[req.user?._id, "$subscribers.subscriber"]},
                         then : true,
                         else: false
                         
@@ -438,14 +438,14 @@ const getUserChannelProfile = asyncHandler(async(req, res) => {
         }     
 ]) 
 
-        if(!channel?.length){
-            throw new ApiError(404, "Channel does not exist")
-        }
+            if(!channel?.length){
+                throw new ApiError(404, "Channel does not exist")
+            }
 
-        return res
-        .status(200)
-        .json(
-            new ApiResponse(200, "User channel fetched successfully")
+            return res
+            .status(200)
+            .json(
+                new ApiResponse(200, "User channel fetched successfully")
     )
 }) 
 
