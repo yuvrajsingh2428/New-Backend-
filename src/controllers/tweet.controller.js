@@ -105,7 +105,7 @@ const updateTweet = asyncHandler(async (req, res) => {
         throw new ApiError(400, "Empty tweet not allowed")
     }
 
-    if(!tweetId){
+    if(!isValidObjectId(tweetId)){
         throw new ApiError(400," Invalid userId")
     }
 
